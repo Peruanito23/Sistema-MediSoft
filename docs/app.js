@@ -1,5 +1,15 @@
 const { useState, useEffect } = React;
 
+// Helper para formatear moneda a Pesos Dominicanos (DOP)
+function formatCurrency(amount) {
+    try {
+        const num = Number(amount) || 0;
+        return new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(num);
+    } catch (e) {
+        return `RD$ ${Number(amount || 0).toFixed(2)}`;
+    }
+}
+
 // ============ UI COMPONENTS ============
 const Button = ({ children, onClick, className = '', variant = 'default', leftIcon, leftIconSrc, ...props }) => {
     const base = 'btn';
@@ -301,10 +311,23 @@ const TableCell = ({ children, className = '' }) => {
 const Login = ({ onLogin, bgChoice }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        onLogin();
+        setLoading(true);
+        setError('');
+        
+        const result = await loginUser(email, password);
+        
+        if (result.success) {
+            onLogin();
+        } else {
+            setError(result.error);
+        }
+        
+        setLoading(false);
     };
 
     return (
@@ -322,6 +345,11 @@ const Login = ({ onLogin, bgChoice }) => {
                     </div>
                 </CardHeader>
                 <CardContent>
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                            {error}
+                        </div>
+                    )}
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="email">Email</Label>
@@ -335,6 +363,7 @@ const Login = ({ onLogin, bgChoice }) => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
+                                    disabled={loading}
                                 />
                             </div>
                         </div>
@@ -349,11 +378,12 @@ const Login = ({ onLogin, bgChoice }) => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
+                                    disabled={loading}
                                 />
                             </div>
                         </div>
-                        <Button type="submit" className="w-full" variant="primary">
-                            Iniciar Sesión
+                        <Button type="submit" className="w-full" variant="primary" disabled={loading}>
+                            {loading ? 'Validando...' : 'Iniciar Sesión'}
                         </Button>
                     </form>
                 </CardContent>
@@ -434,69 +464,64 @@ const Dashboard = ({ children, currentPage, onLogout, onNavigate, theme, onSetTh
 
 // 3. Gestión de Pacientes
 const PatientManagement = () => {
-    const [patients, setPatients] = useState([
-        {
-            id: '1',
-            name: 'María González',
-            age: 45,
-            gender: 'Femenino',
-            email: 'maria.g@email.com',
-            phone: '+34 612 345 678',
-            address: 'Calle Mayor 123, Madrid',
-            allergies: ['Penicilina', 'Polen'],
-            chronicConditions: ['Hipertensión'],
-            medications: [{ name: 'Enalapril', dosage: '10mg', status: 'Activo' }],
-            bloodType: 'A+',
-            lastVisit: '2024-01-10'
-        },
-        {
-            id: '2',
-            name: 'Juan Pérez',
-            age: 32,
-            gender: 'Masculino',
-            email: 'juan.p@email.com',
-            phone: '+34 623 456 789',
-            address: 'Av. Libertad 45, Barcelona',
-            allergies: [],
-            chronicConditions: ['Asma'],
-            medications: [{ name: 'Salbutamol', dosage: '100mcg', status: 'Activo' }],
-            bloodType: 'O+',
-            lastVisit: '2024-01-05'
-        },
-        {
-            id: '3',
-            name: 'Ana Martínez',
-            age: 28,
-            gender: 'Femenino',
-            email: 'ana.m@email.com',
-            phone: '+34 634 567 890',
-            address: 'Plaza España 7, Valencia',
-            allergies: ['Ibuprofeno'],
-            chronicConditions: ['Migraña'],
-            medications: [{ name: 'Sumatriptán', dosage: '50mg', status: 'Activo' }],
-            bloodType: 'B-',
-            lastVisit: '2024-01-08'
-        }
-    ]);
-    
+    const [patients, setPatients] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [isNewPatientOpen, setIsNewPatientOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [error, setError] = useState('');
+    
     const [newPatient, setNewPatient] = useState({
-        name: '',
-        age: '',
-        gender: 'Masculino',
+        cedula: '',
+        nombres: '',
+        apellidos: '',
+        fecha_nacimiento: '',
+        sexo: 'Masculino',
         email: '',
-        phone: '',
-        address: '',
-        allergies: '',
-        chronicConditions: '',
-        bloodType: 'A+'
+        telefono: '',
+        direccion_residencia: '',
+        sector: '',
+        municipio: '',
+        estado_civil: 'Soltero',
+        ocupacion: '',
+        contacto_emergencia_nombre_completo: '',
+        contacto_emergencia_telefono: '',
+        alergias: '',
+        tipo_sangre: 'A+',
+        medicamentos_actuales: ''
     });
 
+    // Cargar pacientes al montar el componente
+    useEffect(() => {
+        loadPatients();
+    }, []);
+
+    const loadPatients = async () => {
+        setLoading(true);
+        const result = await getPatients();
+        if (result.success) {
+            setPatients(result.data);
+        } else {
+            setError('Error al cargar pacientes');
+        }
+        setLoading(false);
+    };
+
+    const calculateAge = (birthDate) => {
+        const hoje = new Date();
+        const nasc = new Date(birthDate);
+        let age = hoje.getFullYear() - nasc.getFullYear();
+        const mes = hoje.getMonth() - nasc.getMonth();
+        if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) {
+            age--;
+        }
+        return age;
+    };
+
     const filteredPatients = patients.filter(patient =>
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.nombres.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
         patient.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -510,35 +535,71 @@ const PatientManagement = () => {
         return colors[type] || 'bg-gray-100 text-gray-800';
     };
 
-    const handleAddPatient = () => {
-        const patient = {
-            id: (patients.length + 1).toString(),
-            name: newPatient.name,
-            age: parseInt(newPatient.age) || 0,
-            gender: newPatient.gender,
-            email: newPatient.email,
-            phone: newPatient.phone,
-            address: newPatient.address,
-            allergies: newPatient.allergies.split(',').map(a => a.trim()).filter(a => a),
-            chronicConditions: newPatient.chronicConditions.split(',').map(c => c.trim()).filter(c => c),
-            medications: [],
-            bloodType: newPatient.bloodType,
-            lastVisit: new Date().toISOString().split('T')[0]
-        };
+    const validateCedula = (cedula) => {
+        const cedulaRegex = /^[0-9]{3}-[0-9]{7}-[0-9]{1}$/;
+        return cedulaRegex.test(cedula);
+    };
+
+    const validatePhone = (phone) => {
+        const phoneRegex = /^[0-9]{3}-[0-9]{3}-[0-9]{4}$/;
+        return phoneRegex.test(phone);
+    };
+
+    const handleAddPatient = async () => {
+        // Validaciones
+        if (!newPatient.cedula || !newPatient.nombres || !newPatient.apellidos) {
+            setError('Los campos obligatorios no pueden estar vacíos');
+            return;
+        }
+
+        if (!validateCedula(newPatient.cedula)) {
+            setError('Formato de cédula inválido (ej: 056-1234567-8)');
+            return;
+        }
+
+        if (!validatePhone(newPatient.telefono)) {
+            setError('Formato de teléfono inválido (ej: 809-555-1234)');
+            return;
+        }
+
+        if (!validatePhone(newPatient.contacto_emergencia_telefono)) {
+            setError('Formato de teléfono emergencia inválido (ej: 809-555-1234)');
+            return;
+        }
+
+        if (!newPatient.contacto_emergencia_nombre_completo) {
+            setError('El contacto de emergencia es obligatorio');
+            return;
+        }
+
+        const result = await createPatient(newPatient);
         
-        setPatients([...patients, patient]);
-        setIsNewPatientOpen(false);
-        setNewPatient({
-            name: '',
-            age: '',
-            gender: 'Masculino',
-            email: '',
-            phone: '',
-            address: '',
-            allergies: '',
-            chronicConditions: '',
-            bloodType: 'A+'
-        });
+        if (result.success) {
+            setPatients([...patients, result.data]);
+            setIsNewPatientOpen(false);
+            setError('');
+            setNewPatient({
+                cedula: '',
+                nombres: '',
+                apellidos: '',
+                fecha_nacimiento: '',
+                sexo: 'Masculino',
+                email: '',
+                telefono: '',
+                direccion_residencia: '',
+                sector: '',
+                municipio: '',
+                estado_civil: 'Soltero',
+                ocupacion: '',
+                contacto_emergencia_nombre_completo: '',
+                contacto_emergencia_telefono: '',
+                alergias: '',
+                tipo_sangre: 'A+',
+                medicamentos_actuales: ''
+            });
+        } else {
+            setError(result.error);
+        }
     };
 
     return (
@@ -569,154 +630,283 @@ const PatientManagement = () => {
             </div>
             
             {/* Patients Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredPatients.map(patient => (
-                    <Card key={patient.id} className="cursor-pointer card-hover" onClick={() => {
-                        setSelectedPatient(patient);
-                        setIsDetailOpen(true);
-                    }}>
-                        <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <CardTitle className="text-lg">
-                                        {patient.name}
-                                    </CardTitle>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <Badge className={getBloodTypeColor(patient.bloodType)}>
-                                            {patient.bloodType}
-                                        </Badge>
-                                        <Badge variant="outline">{patient.age} años</Badge>
+            {loading ? (
+                <div className="flex items-center justify-center py-12">
+                    <p className="text-gray-600">Cargando pacientes...</p>
+                </div>
+            ) : filteredPatients.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                    <p className="text-gray-600">No hay pacientes registrados</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredPatients.map(patient => (
+                        <Card key={patient.id_Paciente} className="cursor-pointer card-hover" onClick={() => {
+                            setSelectedPatient(patient);
+                            setIsDetailOpen(true);
+                        }}>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <CardTitle className="text-lg">
+                                            {patient.nombres} {patient.apellidos}
+                                        </CardTitle>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <Badge className={getBloodTypeColor(patient.tipo_sangre)}>
+                                                {patient.tipo_sangre}
+                                            </Badge>
+                                            {patient.fecha_nacimiento && (
+                                                <Badge variant="outline">{calculateAge(patient.fecha_nacimiento)} años</Badge>
+                                            )}
+                                        </div>
                                     </div>
+                                    <img src="../Img/Logo.png" alt="avatar" className="avatar" />
                                 </div>
-                                <img src="../Img/Logo.png" alt="avatar" className="avatar" />
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <i className="fas fa-envelope"></i>
-                                <span>{patient.email}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <i className="fas fa-phone"></i>
-                                <span>{patient.phone}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <i className="fas fa-map-marker-alt"></i>
-                                <span className="truncate">{patient.address}</span>
-                            </div>
-                            {patient.allergies.length > 0 && (
-                                <div className="flex items-center gap-2">
-                                    <i className="fas fa-exclamation-triangle text-red-500"></i>
-                                    <span className="text-sm text-red-600">
-                                        {patient.allergies.length} alergia(s)
-                                    </span>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <i className="fas fa-envelope"></i>
+                                    <span>{patient.email}</span>
                                 </div>
-                            )}
-                            {patient.chronicConditions.length > 0 && (
-                                <div className="flex items-center gap-2">
-                                    <i className="fas fa-file-medical text-amber-500"></i>
-                                    <span className="text-sm text-amber-600">
-                                        {patient.chronicConditions.length} condición(es)
-                                    </span>
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <i className="fas fa-phone"></i>
+                                    <span>{patient.telefono}</span>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                    <i className="fas fa-map-marker-alt"></i>
+                                    <span className="truncate">{patient.direccion_residencia}</span>
+                                </div>
+                                {patient.alergias && patient.alergias.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <i className="fas fa-exclamation-triangle text-red-500"></i>
+                                        <span className="text-sm text-red-600">
+                                            Alergias: {patient.alergias}
+                                        </span>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            )}
             
             {/* New Patient Dialog */}
             <Dialog open={isNewPatientOpen} onOpenChange={setIsNewPatientOpen}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Nuevo Paciente</DialogTitle>
                     </DialogHeader>
+                    {error && (
+                        <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                            {error}
+                        </div>
+                    )}
                     <div className="space-y-4 py-4 px-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="name">Nombre Completo</Label>
-                            <Input
-                                id="name"
-                                value={newPatient.name}
-                                onChange={(e) => setNewPatient({...newPatient, name: e.target.value})}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="age">Edad</Label>
-                                <Input
-                                    id="age"
-                                    type="number"
-                                    value={newPatient.age}
-                                    onChange={(e) => setNewPatient({...newPatient, age: e.target.value})}
-                                />
+                        {/* DATOS PERSONALES */}
+                        <div className="border-b pb-4">
+                            <h4 className="font-semibold text-gray-900 mb-3">Datos Personales</h4>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="cedula">Cédula *</Label>
+                                    <Input
+                                        id="cedula"
+                                        placeholder="056-1234567-8"
+                                        value={newPatient.cedula}
+                                        onChange={(e) => setNewPatient({...newPatient, cedula: e.target.value})}
+                                    />
+                                    <p className="text-xs text-gray-500">Formato: XXX-XXXXXXX-X</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="nombres">Nombres *</Label>
+                                        <Input
+                                            id="nombres"
+                                            value={newPatient.nombres}
+                                            onChange={(e) => setNewPatient({...newPatient, nombres: e.target.value})}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="apellidos">Apellidos *</Label>
+                                        <Input
+                                            id="apellidos"
+                                            value={newPatient.apellidos}
+                                            onChange={(e) => setNewPatient({...newPatient, apellidos: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+                                        <Input
+                                            id="fecha_nacimiento"
+                                            type="date"
+                                            value={newPatient.fecha_nacimiento}
+                                            onChange={(e) => setNewPatient({...newPatient, fecha_nacimiento: e.target.value})}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="sexo">Sexo</Label>
+                                        <Select
+                                            id="sexo"
+                                            value={newPatient.sexo}
+                                            onChange={(e) => setNewPatient({...newPatient, sexo: e.target.value})}
+                                        >
+                                            <option value="Masculino">Masculino</option>
+                                            <option value="Femenino">Femenino</option>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="estado_civil">Estado Civil</Label>
+                                        <Select
+                                            id="estado_civil"
+                                            value={newPatient.estado_civil}
+                                            onChange={(e) => setNewPatient({...newPatient, estado_civil: e.target.value})}
+                                        >
+                                            <option value="Soltero">Soltero</option>
+                                            <option value="Casado">Casado</option>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="ocupacion">Ocupación</Label>
+                                        <Input
+                                            id="ocupacion"
+                                            value={newPatient.ocupacion}
+                                            onChange={(e) => setNewPatient({...newPatient, ocupacion: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="gender">Género</Label>
-                                <Select
-                                    id="gender"
-                                    value={newPatient.gender}
-                                    onChange={(e) => setNewPatient({...newPatient, gender: e.target.value})}
-                                >
-                                    <option value="Masculino">Masculino</option>
-                                    <option value="Femenino">Femenino</option>
-                                    <option value="Otro">Otro</option>
-                                </Select>
+                        </div>
+
+                        {/* CONTACTO */}
+                        <div className="border-b pb-4">
+                            <h4 className="font-semibold text-gray-900 mb-3">Contacto</h4>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email *</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        value={newPatient.email}
+                                        onChange={(e) => setNewPatient({...newPatient, email: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="telefono">Teléfono *</Label>
+                                    <Input
+                                        id="telefono"
+                                        placeholder="809-555-1234"
+                                        value={newPatient.telefono}
+                                        onChange={(e) => setNewPatient({...newPatient, telefono: e.target.value})}
+                                    />
+                                    <p className="text-xs text-gray-500">Formato: XXX-XXX-XXXX</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="direccion_residencia">Dirección *</Label>
+                                    <Textarea
+                                        id="direccion_residencia"
+                                        value={newPatient.direccion_residencia}
+                                        onChange={(e) => setNewPatient({...newPatient, direccion_residencia: e.target.value})}
+                                        rows="2"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="sector">Sector</Label>
+                                        <Input
+                                            id="sector"
+                                            value={newPatient.sector}
+                                            onChange={(e) => setNewPatient({...newPatient, sector: e.target.value})}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="municipio">Municipio</Label>
+                                        <Input
+                                            id="municipio"
+                                            value={newPatient.municipio}
+                                            onChange={(e) => setNewPatient({...newPatient, municipio: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={newPatient.email}
-                                onChange={(e) => setNewPatient({...newPatient, email: e.target.value})}
-                            />
+
+                        {/* DATOS MÉDICOS */}
+                        <div className="border-b pb-4">
+                            <h4 className="font-semibold text-gray-900 mb-3">Datos Médicos</h4>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="tipo_sangre">Tipo Sanguíneo</Label>
+                                    <Select
+                                        id="tipo_sangre"
+                                        value={newPatient.tipo_sangre}
+                                        onChange={(e) => setNewPatient({...newPatient, tipo_sangre: e.target.value})}
+                                    >
+                                        <option value="A+">A+</option>
+                                        <option value="A-">A-</option>
+                                        <option value="B+">B+</option>
+                                        <option value="B-">B-</option>
+                                        <option value="O+">O+</option>
+                                        <option value="O-">O-</option>
+                                        <option value="AB+">AB+</option>
+                                        <option value="AB-">AB-</option>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="alergias">Alergias (separadas por comas)</Label>
+                                    <Textarea
+                                        id="alergias"
+                                        placeholder="Penicilina, Polen, etc."
+                                        value={newPatient.alergias}
+                                        onChange={(e) => setNewPatient({...newPatient, alergias: e.target.value})}
+                                        rows="2"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="medicamentos_actuales">Medicamentos Actuales (separados por comas)</Label>
+                                    <Textarea
+                                        id="medicamentos_actuales"
+                                        placeholder="Enalapril 10mg, Salbutamol 100mcg, etc."
+                                        value={newPatient.medicamentos_actuales}
+                                        onChange={(e) => setNewPatient({...newPatient, medicamentos_actuales: e.target.value})}
+                                        rows="2"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Teléfono</Label>
-                            <Input
-                                id="phone"
-                                value={newPatient.phone}
-                                onChange={(e) => setNewPatient({...newPatient, phone: e.target.value})}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Dirección</Label>
-                            <Input
-                                id="address"
-                                value={newPatient.address}
-                                onChange={(e) => setNewPatient({...newPatient, address: e.target.value})}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="allergies">Alergias (separadas por comas)</Label>
-                            <Textarea
-                                id="allergies"
-                                placeholder="Penicilina, Polen, etc."
-                                value={newPatient.allergies}
-                                onChange={(e) => setNewPatient({...newPatient, allergies: e.target.value})}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="bloodType">Tipo Sanguíneo</Label>
-                            <Select
-                                id="bloodType"
-                                value={newPatient.bloodType}
-                                onChange={(e) => setNewPatient({...newPatient, bloodType: e.target.value})}
-                            >
-                                <option value="A+">A+</option>
-                                <option value="A-">A-</option>
-                                <option value="B+">B+</option>
-                                <option value="B-">B-</option>
-                                <option value="O+">O+</option>
-                                <option value="O-">O-</option>
-                                <option value="AB+">AB+</option>
-                                <option value="AB-">AB-</option>
-                            </Select>
+
+                        {/* CONTACTO EMERGENCIA */}
+                        <div>
+                            <h4 className="font-semibold text-gray-900 mb-3">Contacto de Emergencia</h4>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <Label htmlFor="contacto_emergencia_nombre_completo">Nombre Completo *</Label>
+                                    <Input
+                                        id="contacto_emergencia_nombre_completo"
+                                        value={newPatient.contacto_emergencia_nombre_completo}
+                                        onChange={(e) => setNewPatient({...newPatient, contacto_emergencia_nombre_completo: e.target.value})}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="contacto_emergencia_telefono">Teléfono *</Label>
+                                    <Input
+                                        id="contacto_emergencia_telefono"
+                                        placeholder="809-555-1234"
+                                        value={newPatient.contacto_emergencia_telefono}
+                                        onChange={(e) => setNewPatient({...newPatient, contacto_emergencia_telefono: e.target.value})}
+                                    />
+                                    <p className="text-xs text-gray-500">Formato: XXX-XXX-XXXX</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-                        <Button variant="outline" onClick={() => setIsNewPatientOpen(false)}>
+                        <Button variant="outline" onClick={() => {
+                            setIsNewPatientOpen(false);
+                            setError('');
+                        }}>
                             Cancelar
                         </Button>
                         <Button onClick={handleAddPatient} variant="primary">
@@ -865,70 +1055,96 @@ const PatientManagement = () => {
 const AppointmentSchedule = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false);
-    const [appointments, setAppointments] = useState([
-        { id: '1', patientName: 'María González', date: new Date(), time: '09:00', type: 'Consulta General', status: 'confirmada', doctor: 'Dr. López' },
-        { id: '2', patientName: 'Juan Pérez', date: new Date(), time: '10:30', type: 'Revisión', status: 'pendiente', doctor: 'Dr. López' },
-        { id: '3', patientName: 'Ana Martínez', date: new Date(), time: '12:00', type: 'Primera Consulta', status: 'confirmada', doctor: 'Dr. López' },
-        { id: '4', patientName: 'Carlos Ruiz', date: new Date(Date.now() + 86400000), time: '15:00', type: 'Urgencia', status: 'completada', doctor: 'Dra. García' },
-        { id: '5', patientName: 'Laura Sánchez', date: new Date(Date.now() + 2 * 86400000), time: '11:00', type: 'Revisión', status: 'pendiente', doctor: 'Dr. Martínez' }
-    ]);
+    const [appointments, setAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
+    const [doctors, setDoctors] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     
     const [newAppointment, setNewAppointment] = useState({
-        patientName: '',
-        date: new Date().toISOString().split('T')[0],
-        time: '',
-        type: 'Consulta General',
-        doctor: 'Dr. López'
+        id_pacientes_fk: '',
+        id_medico_fk: '',
+        fecha_cita: new Date().toISOString().split('T')[0],
+        hora_cita: '',
+        duracion_estimada: '30',
+        motivo: '',
+        tipo_consulta: 'Consulta General',
+        notas_adicionales: ''
     });
+
+    // Cargar datos al montar el componente
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        const [apptResult, patResult, docResult] = await Promise.all([
+            getAppointments(),
+            getPatients(),
+            getDoctors()
+        ]);
+
+        if (apptResult.success) {
+            setAppointments(apptResult.data);
+        }
+        if (patResult.success) {
+            setPatients(patResult.data);
+        }
+        if (docResult.success) {
+            setDoctors(docResult.data);
+        }
+        setLoading(false);
+    };
 
     const stats = {
         total: appointments.length,
-        confirmed: appointments.filter(a => a.status === 'confirmada').length,
-        pending: appointments.filter(a => a.status === 'pendiente').length,
-        completed: appointments.filter(a => a.status === 'completada').length
+        confirmada: appointments.filter(a => a.estado === 'Programada').length,
+        atendida: appointments.filter(a => a.estado === 'Atendida').length,
+        cancelada: appointments.filter(a => a.estado === 'Cancelada').length
     };
 
     const getStatusBadge = (status) => {
         const variants = {
-            confirmada: 'bg-green-100 text-green-800',
-            pendiente: 'bg-yellow-100 text-yellow-800',
-            cancelada: 'bg-red-100 text-red-800',
-            completada: 'bg-blue-100 text-blue-800'
+            'Programada': 'bg-blue-100 text-blue-800',
+            'Atendida': 'bg-green-100 text-green-800',
+            'Cancelada': 'bg-red-100 text-red-800',
+            'No asistio': 'bg-yellow-100 text-yellow-800'
         };
         return variants[status] || 'bg-gray-100 text-gray-800';
     };
 
-    const handleAddAppointment = () => {
-        if (!newAppointment.patientName || !newAppointment.time) {
-            alert('Por favor completa todos los campos obligatorios');
+    const handleAddAppointment = async () => {
+        if (!newAppointment.id_pacientes_fk || !newAppointment.hora_cita || !newAppointment.id_medico_fk) {
+            setError('Por favor completa todos los campos obligatorios');
             return;
         }
 
-        const appointment = {
-            id: (appointments.length + 1).toString(),
-            patientName: newAppointment.patientName,
-            date: new Date(newAppointment.date),
-            time: newAppointment.time,
-            type: newAppointment.type,
-            status: 'pendiente',
-            doctor: newAppointment.doctor
-        };
+        const result = await createAppointment(newAppointment);
         
-        setAppointments([...appointments, appointment]);
-        setIsNewAppointmentOpen(false);
-        setNewAppointment({
-            patientName: '',
-            date: new Date().toISOString().split('T')[0],
-            time: '',
-            type: 'Consulta General',
-            doctor: 'Dr. López'
-        });
+        if (result.success) {
+            setAppointments([...appointments, result.data]);
+            setIsNewAppointmentOpen(false);
+            setError('');
+            setNewAppointment({
+                id_pacientes_fk: '',
+                id_medico_fk: '',
+                fecha_cita: new Date().toISOString().split('T')[0],
+                hora_cita: '',
+                duracion_estimada: '30',
+                motivo: '',
+                tipo_consulta: 'Consulta General',
+                notas_adicionales: ''
+            });
+        } else {
+            setError(result.error);
+        }
     };
 
     const filteredAppointments = appointments.filter(app => {
-        const appDate = new Date(app.date);
-        const selected = new Date(selectedDate);
-        return appDate.toDateString() === selected.toDateString();
+        const appDate = app.fecha_cita;
+        const selected = selectedDate.toISOString().split('T')[0];
+        return appDate === selected;
     });
 
     const Calendar = () => {
@@ -1148,48 +1364,53 @@ const AppointmentSchedule = () => {
                     <DialogHeader>
                         <DialogTitle>Nueva Cita Médica</DialogTitle>
                     </DialogHeader>
+                    {error && (
+                        <div className="mx-6 mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                            {error}
+                        </div>
+                    )}
                     <div className="space-y-4 py-4 px-6">
                         <div className="space-y-2">
-                            <Label htmlFor="patient">Paciente</Label>
+                            <Label htmlFor="patient">Paciente *</Label>
                             <Select
                                 id="patient"
-                                value={newAppointment.patientName}
-                                onChange={(e) => setNewAppointment({...newAppointment, patientName: e.target.value})}
+                                value={newAppointment.id_pacientes_fk}
+                                onChange={(e) => setNewAppointment({...newAppointment, id_pacientes_fk: e.target.value})}
                             >
                                 <option value="">Seleccionar paciente</option>
-                                <option value="María González">María González</option>
-                                <option value="Juan Pérez">Juan Pérez</option>
-                                <option value="Ana Martínez">Ana Martínez</option>
-                                <option value="Carlos Ruiz">Carlos Ruiz</option>
-                                <option value="Laura Sánchez">Laura Sánchez</option>
+                                {patients.map(p => (
+                                    <option key={p.id_Paciente} value={p.id_Paciente}>
+                                        {p.nombres} {p.apellidos}
+                                    </option>
+                                ))}
                             </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="date">Fecha</Label>
+                                <Label htmlFor="fecha_cita">Fecha *</Label>
                                 <Input
-                                    id="date"
+                                    id="fecha_cita"
                                     type="date"
-                                    value={newAppointment.date}
-                                    onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
+                                    value={newAppointment.fecha_cita}
+                                    onChange={(e) => setNewAppointment({...newAppointment, fecha_cita: e.target.value})}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="time">Hora</Label>
+                                <Label htmlFor="hora_cita">Hora *</Label>
                                 <Input
-                                    id="time"
+                                    id="hora_cita"
                                     type="time"
-                                    value={newAppointment.time}
-                                    onChange={(e) => setNewAppointment({...newAppointment, time: e.target.value})}
+                                    value={newAppointment.hora_cita}
+                                    onChange={(e) => setNewAppointment({...newAppointment, hora_cita: e.target.value})}
                                 />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="type">Tipo de Consulta</Label>
+                            <Label htmlFor="tipo_consulta">Tipo de Consulta</Label>
                             <Select
-                                id="type"
-                                value={newAppointment.type}
-                                onChange={(e) => setNewAppointment({...newAppointment, type: e.target.value})}
+                                id="tipo_consulta"
+                                value={newAppointment.tipo_consulta}
+                                onChange={(e) => setNewAppointment({...newAppointment, tipo_consulta: e.target.value})}
                             >
                                 <option value="Consulta General">Consulta General</option>
                                 <option value="Revisión">Revisión</option>
@@ -1198,20 +1419,55 @@ const AppointmentSchedule = () => {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="doctor">Médico</Label>
+                            <Label htmlFor="id_medico_fk">Médico *</Label>
                             <Select
-                                id="doctor"
-                                value={newAppointment.doctor}
-                                onChange={(e) => setNewAppointment({...newAppointment, doctor: e.target.value})}
+                                id="id_medico_fk"
+                                value={newAppointment.id_medico_fk}
+                                onChange={(e) => setNewAppointment({...newAppointment, id_medico_fk: e.target.value})}
                             >
-                                <option value="Dr. López">Dr. López</option>
-                                <option value="Dra. García">Dra. García</option>
-                                <option value="Dr. Martínez">Dr. Martínez</option>
+                                <option value="">Seleccionar médico</option>
+                                {doctors.map(d => (
+                                    <option key={d.id_usuario} value={d.id_usuario}>
+                                        {d.nombres} {d.apellidos} ({d.especialidad})
+                                    </option>
+                                ))}
                             </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="motivo">Motivo de la Consulta</Label>
+                            <Textarea
+                                id="motivo"
+                                value={newAppointment.motivo}
+                                onChange={(e) => setNewAppointment({...newAppointment, motivo: e.target.value})}
+                                rows="2"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="duracion">Duración (minutos)</Label>
+                                <Input
+                                    id="duracion"
+                                    type="number"
+                                    value={newAppointment.duracion_estimada}
+                                    onChange={(e) => setNewAppointment({...newAppointment, duracion_estimada: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="notas">Notas Adicionales</Label>
+                            <Textarea
+                                id="notas"
+                                value={newAppointment.notas_adicionales}
+                                onChange={(e) => setNewAppointment({...newAppointment, notas_adicionales: e.target.value})}
+                                rows="2"
+                            />
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-                        <Button variant="outline" onClick={() => setIsNewAppointmentOpen(false)}>
+                        <Button variant="outline" onClick={() => {
+                            setIsNewAppointmentOpen(false);
+                            setError('');
+                        }}>
                             Cancelar
                         </Button>
                         <Button onClick={handleAddAppointment} variant="primary">
@@ -1228,119 +1484,108 @@ const AppointmentSchedule = () => {
 const BillingPayments = () => {
     const [activeTab, setActiveTab] = useState('invoices');
     const [isNewInvoiceOpen, setIsNewInvoiceOpen] = useState(false);
-    const [invoices, setInvoices] = useState([
-        {
-            id: 'INV-001',
-            patientName: 'María González',
-            date: new Date('2024-01-09'),
-            amount: 120.00,
-            status: 'pagado',
-            items: [
-                { description: 'Consulta General', price: 80.00 },
-                { description: 'Análisis de Sangre', price: 40.00 }
-            ],
-            insurance: 'Seguro Salud Plus'
-        },
-        {
-            id: 'INV-002',
-            patientName: 'Juan Pérez',
-            date: new Date('2024-01-08'),
-            amount: 150.00,
-            status: 'pendiente',
-            items: [
-                { description: 'Consulta Especializada', price: 120.00 },
-                { description: 'Radiografía', price: 30.00 }
-            ]
-        },
-        {
-            id: 'INV-003',
-            patientName: 'Ana Martínez',
-            date: new Date('2023-12-25'),
-            amount: 200.00,
-            status: 'vencido',
-            items: [
-                { description: 'Consulta General', price: 80.00 },
-                { description: 'Ecografía', price: 120.00 }
-            ],
-            insurance: 'Medicare Premium'
-        },
-        {
-            id: 'INV-004',
-            patientName: 'Carlos Ruiz',
-            date: new Date('2024-01-10'),
-            amount: 95.50,
-            status: 'pagado',
-            items: [
-                { description: 'Consulta General', price: 80.00 },
-                { description: 'Medicamentos', price: 15.50 }
-            ]
-        }
-    ]);
-    
-    const [payments, setPayments] = useState([
-        { id: 'PAY-001', invoiceId: 'INV-001', patientName: 'María González', amount: 120.00, method: 'Tarjeta de Crédito', date: new Date('2024-01-09') },
-        { id: 'PAY-002', invoiceId: 'INV-004', patientName: 'Carlos Ruiz', amount: 95.50, method: 'Efectivo', date: new Date('2024-01-10') }
-    ]);
+    const [invoices, setInvoices] = useState([]);
+    const [patients, setPatients] = useState([]);
+    const [services, setServices] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     
     const [newInvoice, setNewInvoice] = useState({
-        patientName: '',
-        insurance: 'Sin seguro',
-        items: [{ description: '', price: '' }]
+        id_paciente_fk: '',
+        monto_total: 0,
+        metodo_pago: 'Efectivo',
+        items: [{ id_servicio_fk: '', precio_aplicado: '', cantidad: '1' }]
     });
 
+    // Cargar datos al montar el componente
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        const [invResult, patResult, servResult] = await Promise.all([
+            getInvoices(),
+            getPatients(),
+            getServices()
+        ]);
+
+        if (invResult.success) {
+            setInvoices(invResult.data);
+        }
+        if (patResult.success) {
+            setPatients(patResult.data);
+        }
+        if (servResult.success) {
+            setServices(servResult.data);
+        }
+        setLoading(false);
+    };
+
     const stats = {
-        totalIncome: payments.reduce((sum, payment) => sum + payment.amount, 0),
-        pending: invoices.filter(i => i.status === 'pendiente').reduce((sum, inv) => sum + inv.amount, 0),
-        overdue: invoices.filter(i => i.status === 'vencido').reduce((sum, inv) => sum + inv.amount, 0),
+        totalIncome: invoices.filter(i => i.estado === 'pagada').reduce((sum, inv) => sum + inv.monto_total, 0),
+        pending: invoices.filter(i => i.estado === 'pendiente').reduce((sum, inv) => sum + inv.monto_total, 0),
+        overdue: 0,
         totalInvoices: invoices.length
     };
 
     const getStatusBadge = (status) => {
         const variants = {
-            pagado: 'bg-green-100 text-green-800',
-            pendiente: 'bg-yellow-100 text-yellow-800',
-            vencido: 'bg-red-100 text-red-800'
+            'pagada': 'bg-green-100 text-green-800',
+            'pendiente': 'bg-yellow-100 text-yellow-800',
+            'cancelada': 'bg-red-100 text-red-800'
         };
         return variants[status] || 'bg-gray-100 text-gray-800';
     };
 
-    const handleAddInvoice = () => {
-        if (!newInvoice.patientName) {
-            alert('Por favor selecciona un paciente');
+    const handleAddInvoice = async () => {
+        if (!newInvoice.id_paciente_fk) {
+            setError('Por favor selecciona un paciente');
             return;
         }
 
         const total = newInvoice.items.reduce((sum, item) => {
-            const price = parseFloat(item.price) || 0;
+            const price = parseFloat(item.precio_aplicado) || 0;
             return sum + price;
         }, 0);
         
-        const invoice = {
-            id: `INV-00${invoices.length + 1}`,
-            patientName: newInvoice.patientName,
-            date: new Date(),
-            amount: total,
-            status: 'pendiente',
+        if (total === 0) {
+            setError('La factura debe tener al menos un item');
+            return;
+        }
+
+        const invoiceData = {
+            id_paciente_fk: newInvoice.id_paciente_fk,
+            monto_total: total,
+            metodo_pago: newInvoice.metodo_pago,
             items: newInvoice.items.map(item => ({
-                description: item.description,
-                price: parseFloat(item.price) || 0
-            })),
-            insurance: newInvoice.insurance === 'Sin seguro' ? undefined : newInvoice.insurance
+                id_servicio_fk: item.id_servicio_fk,
+                precio_aplicado: parseFloat(item.precio_aplicado) || 0,
+                cantidad: parseInt(item.cantidad) || 1
+            }))
         };
+
+        const result = await createInvoice(invoiceData);
         
-        setInvoices([...invoices, invoice]);
-        setIsNewInvoiceOpen(false);
-        setNewInvoice({
-            patientName: '',
-            insurance: 'Sin seguro',
-            items: [{ description: '', price: '' }]
-        });
+        if (result.success) {
+            setInvoices([...invoices, result.data]);
+            setIsNewInvoiceOpen(false);
+            setError('');
+            setNewInvoice({
+                id_paciente_fk: '',
+                monto_total: 0,
+                metodo_pago: 'Efectivo',
+                items: [{ id_servicio_fk: '', precio_aplicado: '', cantidad: '1' }]
+            });
+        } else {
+            setError(result.error);
+        }
     };
 
     const addInvoiceItem = () => {
         setNewInvoice({
             ...newInvoice,
-            items: [...newInvoice.items, { description: '', price: '' }]
+            items: [...newInvoice.items, { id_servicio_fk: '', precio_aplicado: '', cantidad: '1' }]
         });
     };
 
@@ -1379,10 +1624,10 @@ const BillingPayments = () => {
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Total Ingresos</p>
                                 <p className="text-2xl font-semibold mt-1 text-green-600">
-                                    €{stats.totalIncome.toFixed(2)}
+                                    {formatCurrency(stats.totalIncome)}
                                 </p>
                             </div>
-                            <i className="fas fa-euro-sign text-green-500 text-2xl"></i>
+                            <i className="fas fa-money-bill-wave text-green-500 text-2xl"></i>
                         </div>
                     </CardContent>
                 </Card>
@@ -1392,7 +1637,7 @@ const BillingPayments = () => {
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Por Cobrar</p>
                                 <p className="text-2xl font-semibold mt-1 text-yellow-600">
-                                    €{stats.pending.toFixed(2)}
+                                    {formatCurrency(stats.pending)}
                                 </p>
                             </div>
                             <i className="fas fa-clock text-yellow-500 text-2xl"></i>
@@ -1405,7 +1650,7 @@ const BillingPayments = () => {
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Vencidos</p>
                                 <p className="text-2xl font-semibold mt-1 text-red-600">
-                                    €{stats.overdue.toFixed(2)}
+                                    {formatCurrency(stats.overdue)}
                                 </p>
                             </div>
                             <i className="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
@@ -1493,7 +1738,7 @@ const BillingPayments = () => {
                                                     {invoice.date.toLocaleDateString('es-ES')}
                                                 </TableCell>
                                                 <TableCell>
-                                                    €{invoice.amount.toFixed(2)}
+                                                    {formatCurrency(invoice.amount)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge className={getStatusBadge(invoice.status)}>
@@ -1537,7 +1782,7 @@ const BillingPayments = () => {
                                             <TableCell>{payment.invoiceId}</TableCell>
                                             <TableCell>{payment.patientName}</TableCell>
                                             <TableCell>
-                                                €{payment.amount.toFixed(2)}
+                                                {formatCurrency(payment.amount)}
                                             </TableCell>
                                             <TableCell>{payment.method}</TableCell>
                                             <TableCell>
@@ -1566,7 +1811,7 @@ const BillingPayments = () => {
                                                 { mes: 'Dic', ingresos: 6800 }
                                             ].map((item) => (
                                                 <div className="flex flex-col items-center flex-1 mx-1" key={item.mes}>
-                                                    <div className="text-xs mb-1">€{item.ingresos}</div>
+                                                    <div className="text-xs mb-1">{formatCurrency(item.ingresos)}</div>
                                                     <div 
                                                         className="w-full bg-blue-500 rounded-t-lg"
                                                         style={{ height: `${(item.ingresos / 7000) * 100}%`, minHeight: '10px' }}
@@ -1607,19 +1852,19 @@ const BillingPayments = () => {
                                         <CardContent className="p-6 space-y-4">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-600">Total Facturado:</span>
-                                                <span className="font-semibold">€{invoices.reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}</span>
+                                                <span className="font-semibold">{formatCurrency(invoices.reduce((sum, inv) => sum + inv.amount, 0))}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-600">Pagado:</span>
-                                                <span className="font-semibold text-green-600">€{stats.totalIncome.toFixed(2)}</span>
+                                                <span className="font-semibold text-green-600">{formatCurrency(stats.totalIncome)}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-600">Por Cobrar:</span>
-                                                <span className="font-semibold text-yellow-600">€{stats.pending.toFixed(2)}</span>
+                                                <span className="font-semibold text-yellow-600">{formatCurrency(stats.pending)}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-gray-600">Vencido:</span>
-                                                <span className="font-semibold text-red-600">€{stats.overdue.toFixed(2)}</span>
+                                                <span className="font-semibold text-red-600">{formatCurrency(stats.overdue)}</span>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -1690,7 +1935,7 @@ const BillingPayments = () => {
                                             className="flex-1"
                                         />
                                         <div className="flex items-center gap-2">
-                                            <span className="text-gray-600">€</span>
+                                            <span className="text-gray-600">RD$</span>
                                             <Input
                                                 type="number"
                                                 step="0.01"
@@ -1717,10 +1962,10 @@ const BillingPayments = () => {
                             <div className="flex justify-between items-center">
                                 <span className="font-semibold text-lg">Total:</span>
                                 <span className="text-2xl font-bold">
-                                    €{newInvoice.items.reduce((sum, item) => {
+                                    {formatCurrency(newInvoice.items.reduce((sum, item) => {
                                         const price = parseFloat(item.price) || 0;
                                         return sum + price;
-                                    }, 0).toFixed(2)}
+                                    }, 0))}
                                 </span>
                             </div>
                         </div>
@@ -1744,6 +1989,7 @@ const BillingPayments = () => {
 const App = () => {
     const [currentPage, setCurrentPage] = useState('login');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem('theme');
@@ -1762,6 +2008,21 @@ const App = () => {
     });
 
     useEffect(() => {
+        // Verificar si hay usuario autenticado
+        const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+        if (!currentUser && typeof window !== 'undefined') {
+            if (typeof getSupabaseClient !== 'function') {
+                console.warn('Supabase helpers not loaded: getCurrentUser/getSupabaseClient missing');
+            }
+        }
+        if (currentUser) {
+            setUser(currentUser);
+            setIsAuthenticated(true);
+            setCurrentPage('patients');
+        }
+    }, []);
+
+    useEffect(() => {
         try {
             document.documentElement.classList.toggle('dark', theme === 'dark');
             localStorage.setItem('theme', theme);
@@ -1775,11 +2036,15 @@ const App = () => {
     }, [bgChoice]);
 
     const handleLogin = () => {
+        const currentUser = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+        setUser(currentUser);
         setIsAuthenticated(true);
         setCurrentPage('patients');
     };
 
     const handleLogout = () => {
+        if (typeof logoutUser === 'function') logoutUser();
+        setUser(null);
         setIsAuthenticated(false);
         setCurrentPage('login');
     };
