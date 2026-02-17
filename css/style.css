@@ -348,9 +348,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-sans);
 .avatar { width: 40px; height: 40px; border-radius: 9999px; object-fit: cover; }
 
 /* Apply default images from project Img folder (relative to docs/) */
-.login-hero.bg-fondo1 { background-image: url('../Img/fondo1.jpg'); }
-.login-hero.bg-fondo2 { background-image: url('../Img/fondo2.jpg'); }
-.login-hero.bg-fondo3 { background-image: url('../Img/fondo3.jpg'); }
+.login-hero.bg-fondo1 { background-image: url('../img/fondo1.jpg'); }
+.login-hero.bg-fondo2 { background-image: url('../img/fondo2.jpg'); }
+.login-hero.bg-fondo3 { background-image: url('../img/fondo3.jpg'); }
 
 /* Button fancy glow */
 .btn-primary::after {
