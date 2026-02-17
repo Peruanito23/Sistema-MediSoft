@@ -1343,7 +1343,7 @@ const AppointmentSchedule = () => {
                                                     {app.type}
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <img src="../img/Logo.png" alt="avatar" className="avatar" />
+                                                    <img src="img/logo.png" alt="avatar" className="avatar" />
                                                     {app.doctor}
                                                 </div>
                                             </div>
