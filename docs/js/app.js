@@ -170,7 +170,7 @@ const SettingsDialog = ({ open, onOpenChange, theme, onSetTheme, bgChoice, onSet
                                 <img src="img/fondo1.jpg" alt="f1" className="w-28 h-16 object-cover rounded" />
                             </button>
                             <button onClick={() => onSetBgChoice('fondo2')} className={`p-1 rounded ${bgChoice === 'fondo2' ? 'ring-2 ring-blue-400' : 'border'}`}>
-                                <img src= "img/fondo2.jpg" alt="f2" className="w-28 h-16 object-cover rounded" />
+                                <img src="img/fondo2.jpg" alt="f2" className="w-28 h-16 object-cover rounded" />
                             </button>
                             <button onClick={() => onSetBgChoice('fondo3')} className={`p-1 rounded ${bgChoice === 'fondo3' ? 'ring-2 ring-blue-400' : 'border'}`}>
                                 <img src="img/fondo3.jpg" alt="f3" className="w-28 h-16 object-cover rounded" />
@@ -336,7 +336,7 @@ const Login = ({ onLogin, bgChoice }) => {
                 <CardHeader className="space-y-1">
                     <div className="flex flex-col items-center space-y-4">
                         <div className="w-20 h-20 rounded-full overflow-hidden">
-                            <img src="img/logo.png" alt="logo" className="logo-img-lg" />
+                            <img src="img/Logo.png" alt="Logo" className="logo-img-lg" />
                         </div>
                         <div className="text-center">
                             <h1 className="text-3xl font-semibold text-gray-900">Sistema Médico</h1>
@@ -660,7 +660,7 @@ const PatientManagement = () => {
                                             )}
                                         </div>
                                     </div>
-                                    <img src="img/logo.png" alt="avatar" className="avatar" />
+                                    <img src="img/Logo.png" alt="avatar" className="avatar" />
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-3">
@@ -1343,7 +1343,7 @@ const AppointmentSchedule = () => {
                                                     {app.type}
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <img src="img/logo.png" alt="avatar" className="avatar" />
+                                                    <img src="img/Logo.png" alt="avatar" className="avatar" />
                                                     {app.doctor}
                                                 </div>
                                             </div>
