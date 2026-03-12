@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conectar con API - Ejemplo Completo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2.5em;
+        }
+        
+        h1 span {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 1 1 auto;
+            min-width: 150px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .results {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 100px;
+            border: 1px solid #e0e0e0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-weight: bold;
+            padding: 20px;
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .user-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .user-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .user-card p {
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            color: white;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #333;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 <span>Conectar con API</span></h1>
+        
+        <!-- Estadísticas -->
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalRequests">0</div>
+                <div class="stat-label">Peticiones</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="successfulRequests">0</div>
+                <div class="stat-label">Exitosas</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="failedRequests">0</div>
+                <div class="stat-label">Fallidas</div>
+            </div>
+        </div>
+        
+        <!-- Pestañas -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('fetch')">Fetch API</button>
+            <button class="tab" onclick="showTab('xhr')">XMLHttpRequest</button>
+            <button class="tab" onclick="showTab('axios')">Axios</button>
+        </div>
+        
+        <!-- Sección Fetch API -->
+        <div id="fetchSection" class="section">
+            <h2>📡 Fetch API (Moderno)</h2>
+            <div class="button-group">
+                <button onclick="getUsersFetch()">GET - Ver Usuarios</button>
+                <button onclick="getUserByIdFetch()">GET - Usuario por ID</button>
+                <button class="secondary" onclick="createUserFetch()">POST - Crear Usuario</button>
+                <button class="secondary" onclick="updateUserFetch()">PUT - Actualizar</button>
+                <button class="secondary" onclick="deleteUserFetch()">DELETE - Eliminar</button>
+            </div>
+            
+            <div class="form-group">
+                <input type="number" id="userId" placeholder="ID de Usuario (1-10)" min="1" max="10" value="1">
+            </div>
+            
+            <div class="form-group">
+                <input type="text" id="userName" placeholder="Nombre para crear/actualizar">
+                <input type="email" id="userEmail" placeholder="Email para crear/actualizar" style="margin-top: 10px;">
+            </div>
+        </div>
+        
+        <!-- Sección XMLHttpRequest -->
+        <div id="xhrSection" class="section" style="display: none;">
+            <h2>🔄 XMLHttpRequest (Tradicional)</h2>
+            <div class="button-group">
+                <button onclick="getUsersXHR()">GET - Ver Usuarios</button>
+                <button onclick="getUserByIdXHR()">GET - Usuario por ID</button>
+                <button class="secondary" onclick="createUserXHR()">POST - Crear Usuario</button>
+            </div>
+        </div>
+        
+        <!-- Sección Axios -->
+        <div id="axiosSection" class="section" style="display: none;">
+            <h2>⚡ Axios (Librería)</h2>
+            <div class="button-group">
+                <button onclick="getUsersAxios()">GET - Ver Usuarios</button>
+                <button onclick="getUserByIdAxios()">GET - Usuario por ID</button>
+                <button class="secondary" onclick="createUserAxios()">POST - Crear Usuario</button>
+            </div>
+        </div>
+        
+        <!-- Mensajes de estado -->
+        <div id="messageContainer"></div>
+        
+        <!-- Resultados -->
+        <h3>📋 Resultados:</h3>
+        <div id="results" class="results">
+            Presiona un botón para comenzar...
+        </div>
+    </div>
+    
+    <!-- Axios CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Configuración de la API
+        const API = {
+            baseURL: 'https://jsonplaceholder.typicode.com',
+            endpoints: {
+                users: '/users',
+                posts: '/posts',
+                comments: '/comments'
+            }
+        };
+        
+        // Estadísticas
+        let stats = {
+            total: 0,
+            successful: 0,
+            failed: 0
+        };
+        
+        // Mostrar pestañas
+        function showTab(tab) {
+            // Ocultar todas las secciones
+            document.getElementById('fetchSection').style.display = 'none';
+            document.getElementById('xhrSection').style.display = 'none';
+            document.getElementById('axiosSection').style.display = 'none';
+            
+            // Mostrar la sección seleccionada
+            document.getElementById(tab + 'Section').style.display = 'block';
+            
+            // Actualizar pestañas activas
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        
+        // Mostrar mensajes
+        function showMessage(type, text) {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="${type}">${text}</div>`;
+            setTimeout(() => container.innerHTML = '', 3000);
+        }
+        
+        // Actualizar estadísticas
+        function updateStats(success) {
+            stats.total++;
+            if (success) {
+                stats.successful++;
+            } else {
+                stats.failed++;
+            }
+            
+            document.getElementById('totalRequests').textContent = stats.total;
+            document.getElementById('successfulRequests').textContent = stats.successful;
+            document.getElementById('failedRequests').textContent = stats.failed;
+        }
+        
+        // Mostrar resultados en formato legible
+        function displayResults(data, operation) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (Array.isArray(data)) {
+                // Mostrar lista de usuarios
+                let html = '<h3>📊 Lista de Usuarios:</h3>';
+                data.slice(0, 5).forEach(user => {
+                    html += `
+                        <div class="user-card">
+                            <h3>${user.name} (ID: ${user.id})</h3>
+                            <p>📧 Email: ${user.email}</p>
+                            <p>📞 Teléfono: ${user.phone}</p>
+                            <p>🏢 Empresa: ${user.company?.name || 'N/A'}</p>
+                        </div>
+                    `;
+                });
+                if (data.length > 5) {
+                    html += `<p><em>... y ${data.length - 5} más</em></p>`;
+                }
+                resultsDiv.innerHTML = html;
+            } else {
+                // Mostrar usuario individual
+                resultsDiv.innerHTML = `
+                    <div class="user-card">
+                        <h3>${data.name || 'Sin nombre'} (ID: ${data.id})</h3>
+                        <p>📧 Email: ${data.email || 'N/A'}</p>
+                        <p>📞 Teléfono: ${data.phone || 'N/A'}</p>
+                        <p>🌐 Website: ${data.website || 'N/A'}</p>
+                        <p>🏢 Empresa: ${data.company?.name || 'N/A'}</p>
+                        <p><strong>Operación:</strong> ${operation}</p>
+                        <p><small>Respuesta completa: ${JSON.stringify(data, null, 2)}</small></p>
+                    </div>
+                `;
+            }
+        }
+        
+        // ==================== FETCH API ====================
+        
+        async function getUsersFetch() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Cargando usuarios...</div>';
+            
+            try {
+                const response = await fetch(`${API.baseURL}${API.endpoints.users}`);
+                
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+                
+                const users = await response.json();
+                displayResults(users, 'GET (Fetch)');
+                showMessage('success', '✅ Usuarios cargados correctamente');
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al cargar usuarios');
+                updateStats(false);
+            }
+        }
+        
+        async function getUserByIdFetch() {
+            const id = document.getElementById('userId').value;
+            if (!id) {
+                showMessage('error', '❌ Por favor ingresa un ID');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Cargando usuario...</div>';
+            
+            try {
+                const response = await fetch(`${API.baseURL}${API.endpoints.users}/${id}`);
+                
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+                
+                const user = await response.json();
+                displayResults(user, 'GET by ID (Fetch)');
+                showMessage('success', `✅ Usuario ${id} cargado correctamente`);
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al cargar usuario');
+                updateStats(false);
+            }
+        }
+        
+        async function createUserFetch() {
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+            
+            if (!name || !email) {
+                showMessage('error', '❌ Por favor ingresa nombre y email');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Creando usuario...</div>';
+            
+            try {
+                const response = await fetch(`${API.baseURL}${API.endpoints.users}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        email: email,
+                        phone: '123-456-7890',
+                        website: 'ejemplo.com'
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+                
+                const newUser = await response.json();
+                displayResults(newUser, 'POST (Fetch)');
+                showMessage('success', '✅ Usuario creado correctamente');
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al crear usuario');
+                updateStats(false);
+            }
+        }
+        
+        async function updateUserFetch() {
+            const id = document.getElementById('userId').value;
+            const name = document.getElementById('userName').value;
+            
+            if (!id || !name) {
+                showMessage('error', '❌ Por favor ingresa ID y nombre');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Actualizando usuario...</div>';
+            
+            try {
+                const response = await fetch(`${API.baseURL}${API.endpoints.users}/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        email: 'actualizado@ejemplo.com'
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+                
+                const updatedUser = await response.json();
+                displayResults(updatedUser, 'PUT (Fetch)');
+                showMessage('success', `✅ Usuario ${id} actualizado correctamente`);
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al actualizar usuario');
+                updateStats(false);
+            }
+        }
+        
+        async function deleteUserFetch() {
+            const id = document.getElementById('userId').value;
+            
+            if (!id) {
+                showMessage('error', '❌ Por favor ingresa un ID');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Eliminando usuario...</div>';
+            
+            try {
+                const response = await fetch(`${API.baseURL}${API.endpoints.users}/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+                
+                resultsDiv.innerHTML = `<div class="success">✅ Usuario ${id} eliminado correctamente</div>`;
+                showMessage('success', `✅ Usuario ${id} eliminado`);
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al eliminar usuario');
+                updateStats(false);
+            }
+        }
+        
+        // ==================== XMLHttpRequest ====================
+        
+        function getUsersXHR() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Cargando usuarios (XHR)...</div>';
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `${API.baseURL}${API.endpoints.users}`);
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const users = JSON.parse(xhr.responseText);
+                    displayResults(users, 'GET (XHR)');
+                    showMessage('success', '✅ Usuarios cargados correctamente');
+                    updateStats(true);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">❌ Error: ${xhr.status}</div>`;
+                    showMessage('error', '❌ Error al cargar usuarios');
+                    updateStats(false);
+                }
+            };
+            
+            xhr.onerror = function() {
+                resultsDiv.innerHTML = '<div class="error">❌ Error de red</div>';
+                showMessage('error', '❌ Error de red');
+                updateStats(false);
+            };
+            
+            xhr.send();
+        }
+        
+        function getUserByIdXHR() {
+            const id = document.getElementById('userId').value;
+            if (!id) {
+                showMessage('error', '❌ Por favor ingresa un ID');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Cargando usuario (XHR)...</div>';
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `${API.baseURL}${API.endpoints.users}/${id}`);
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const user = JSON.parse(xhr.responseText);
+                    displayResults(user, 'GET by ID (XHR)');
+                    showMessage('success', `✅ Usuario ${id} cargado correctamente`);
+                    updateStats(true);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">❌ Error: ${xhr.status}</div>`;
+                    showMessage('error', '❌ Error al cargar usuario');
+                    updateStats(false);
+                }
+            };
+            
+            xhr.onerror = function() {
+                resultsDiv.innerHTML = '<div class="error">❌ Error de red</div>';
+                showMessage('error', '❌ Error de red');
+                updateStats(false);
+            };
+            
+            xhr.send();
+        }
+        
+        function createUserXHR() {
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+            
+            if (!name || !email) {
+                showMessage('error', '❌ Por favor ingresa nombre y email');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Creando usuario (XHR)...</div>';
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${API.baseURL}${API.endpoints.users}`);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            
+            xhr.onload = function() {
+                if (xhr.status === 201) {
+                    const newUser = JSON.parse(xhr.responseText);
+                    displayResults(newUser, 'POST (XHR)');
+                    showMessage('success', '✅ Usuario creado correctamente');
+                    updateStats(true);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">❌ Error: ${xhr.status}</div>`;
+                    showMessage('error', '❌ Error al crear usuario');
+                    updateStats(false);
+                }
+            };
+            
+            xhr.onerror = function() {
+                resultsDiv.innerHTML = '<div class="error">❌ Error de red</div>';
+                showMessage('error', '❌ Error de red');
+                updateStats(false);
+            };
+            
+            xhr.send(JSON.stringify({
+                name: name,
+                email: email,
+                phone: '123-456-7890',
+                website: 'ejemplo.com'
+            }));
+        }
+        
+        // ==================== Axios ====================
+        
+        async function getUsersAxios() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Cargando usuarios (Axios)...</div>';
+            
+            try {
+                const response = await axios.get(`${API.baseURL}${API.endpoints.users}`);
+                displayResults(response.data, 'GET (Axios)');
+                showMessage('success', '✅ Usuarios cargados correctamente');
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al cargar usuarios');
+                updateStats(false);
+            }
+        }
+        
+        async function getUserByIdAxios() {
+            const id = document.getElementById('userId').value;
+            if (!id) {
+                showMessage('error', '❌ Por favor ingresa un ID');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Cargando usuario (Axios)...</div>';
+            
+            try {
+                const response = await axios.get(`${API.baseURL}${API.endpoints.users}/${id}`);
+                displayResults(response.data, 'GET by ID (Axios)');
+                showMessage('success', `✅ Usuario ${id} cargado correctamente`);
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al cargar usuario');
+                updateStats(false);
+            }
+        }
+        
+        async function createUserAxios() {
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+            
+            if (!name || !email) {
+                showMessage('error', '❌ Por favor ingresa nombre y email');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">⏳ Creando usuario (Axios)...</div>';
+            
+            try {
+                const response = await axios.post(`${API.baseURL}${API.endpoints.users}`, {
+                    name: name,
+                    email: email,
+                    phone: '123-456-7890',
+                    website: 'ejemplo.com'
+                });
+                
+                displayResults(response.data, 'POST (Axios)');
+                showMessage('success', '✅ Usuario creado correctamente');
+                updateStats(true);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                showMessage('error', '❌ Error al crear usuario');
+                updateStats(false);
+            }
+        }
+        
+        // Cargar algunos usuarios al inicio
+        window.onload = function() {
+            setTimeout(getUsersFetch, 500);
+        };
+    </script>
+</body>
+</html>
